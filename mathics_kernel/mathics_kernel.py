@@ -22,12 +22,7 @@ import base64
 __version__ = "0.1.0"
 
 Widget = None
-
-try:
-    from .config import mathexec
-except Exception:
-    mathexec = "mathics"
-
+mathexec = "mathics"
 
 if Widget is None:
     try:
@@ -76,35 +71,35 @@ if(document.getElementById("graphics3dScript2") == null){
  """
 
 
-class WolframKernel(ProcessMetaKernel):
-    implementation = "Wolfram Mathematica Kernel"
+class MathicsKernel(ProcessMetaKernel):
+    implementation = "Mathics Kernel"
     implementation_version = (__version__,)
-    language = "mathematica"
-    language_version = ("10.0",)
-    banner = "Wolfram Mathematica Kernel"
+    language = "wolfram"
+    language_version = ("3.0",)
+    banner = "Mathics Kernel"
     language_info = {
         "exec": mathexec,
         "mimetype": "text/x-mathics",
-        "codemirror_mode": "mathematica",
-        "name": "Mathematica",
+        "codemirror_mode": "wolfram",
+        "name": "Mathics",
         "file_extension": ".m",
         "help_links": MetaKernel.help_links,
-        "version": "0.0.0",
+        "version": "0.0.1",
     }
     open_envel = ""
     close_envel = ""
     kernel_json = {
-        "argv": [sys.executable, "-m", "wolfram_kernel", "-f", "{connection_file}"],
-        "display_name": "Wolfram Mathematica",
-        "language": "mathematica",
-        "name": "wolfram_kernel",
+        "argv": [sys.executable, "-m", "mathics_kernel", "-f", "{connection_file}"],
+        "display_name": "Mathics",
+        "language": "wolfram",
+        "name": "mathics_kernel",
     }
 
     kernel_js = """
     define(function(){return {onload: function(){
-    console.info('wolfram kernel stub loaded');
-    if(Jupyter.notebook.kernel.name!="wolfram_kernel"){
-        console.info("  Current kernel is not a wolfram_kernel");return;}
+    console.info('mathics kernel stub loaded');
+    if(Jupyter.notebook.kernel.name!="mathics_kernel"){
+        console.info("  Current kernel is not a mathics_kernel");return;}
     /*Handle Ctrl-Esc symbols */
 	    var escLitToUTFSymbol = {};
 	    escLitToUTFSymbol["ii"] = "";
@@ -216,7 +211,7 @@ class WolframKernel(ProcessMetaKernel):
     """
 
     def get_usage(self):
-        return "This is the Wolfram Mathematica kernel."
+        return "This is the Mathics kernel."
 
     def repr(self, data):
         return data
@@ -229,7 +224,7 @@ class WolframKernel(ProcessMetaKernel):
     @property
     def banner(self):
         if self._banner is None:
-            banner = "wolfram kernel 0.1"
+            banner = "mathics kernel 0.0.1"
             self._banner = u(banner)
         return self._banner
 
@@ -241,21 +236,11 @@ class WolframKernel(ProcessMetaKernel):
             stdin=subprocess.PIPE,
         ) as pr:
             starttext = pr.communicate(timeout=15)[0].decode().strip()
-
-        starttext = starttext[:40].strip()
-        if starttext[:11] == "Mathematica":
-            self.kernel_type = "wolfram"
-        elif starttext[:7] == "Mathics":
-            self.kernel_type = "mathics"
-        elif starttext[:21] == "Welcome to Expreduce!":
-            self.kernel_type = "expreduce"
-        else:
-            print(starttext)
-            raise ValueError
+        self.kernel_type = "mathics"
         return self.kernel_type
 
     def __init__(self, *args, **kwargs):
-        super(WolframKernel, self).__init__(*args, **kwargs)
+        super(MathicsKernel, self).__init__(*args, **kwargs)
         if not self.wrapper:
             self.wrapper = self.makeWrapper()
 
@@ -427,7 +412,7 @@ class WolframKernel(ProcessMetaKernel):
 
     def makeWrapper(self):
         """
-        Start a math/mathics kernel and return a :class:`REPLWrapper` object.
+        Start a mathics kernel and return a :class:`REPLWrapper` object.
         """
         self.js_libraries_loaded = False
         orig_prompt = u("In\[.*\]:=")
@@ -435,35 +420,7 @@ class WolframKernel(ProcessMetaKernel):
         change_prompt = None
         self.check_wolfram()
 
-        if self.kernel_type in ["wolfram"]:
-            print("Wolfram Kernel or compabible found")
-            self.process_response = self.process_response_wolfram
-            self.open_envel = 'ToExpression["Identity['
-            self.close_envel = ']"]'
-            cmdline = (
-                self.language_info["exec"]
-                + " -rawterm -initfile '"
-                + self.initfilename
-                + "'"
-            )
-
-        if self.kernel_type in ["expreduce"]:
-            print("Expreduce found")
-            self.open_envel = ""
-            self.close_envel = ""
-            self.process_response = self.process_response_wolfram
-            self.do_execute_direct = self.do_execute_direct_expred
-            self.do_execute_direct_single_command = (
-                self.do_execute_direct_single_command_expred
-            )
-            cmdline = (
-                self.language_info["exec"]
-                + " -rawterm -initfile '"
-                + self.initfilename
-                + "'"
-            )
-
-        elif self.kernel_type in ["mathics"]:
+        if self.kernel_type in ["mathics"]:
             print("Mathics found")
             self.process_response = self.process_response_mathics
             self.open_envel = 'ToExpression["Identity['
@@ -894,91 +851,6 @@ class WolframKernel(ProcessMetaKernel):
         resp = self.do_execute_direct_single_command(lastline)
         return self.postprocess_response(resp.output)
 
-    def process_response_wolfram(self, resp):
-        """
-        This routine splits the output from messages
-        and prints generated before it, and send the corresponding messages.
-        It would be better to capture them on the flight, at the very moment
-        when the process print them, but it would involve a
-        change in the wrapper.
-        """
-        lineresponse = resp.splitlines()
-        outputfound = False
-        messagefound = False
-        messagetype = None
-        messagelength = 0
-        lastmessage = ""
-        mmaexeccount = -1
-        outputtext = "null:"
-        sangria = 0
-        for linnum, liner in enumerate(lineresponse):
-            if outputfound:
-                if liner.strip() == "":
-                    continue
-                if liner.strip()[:4] == "Out[":
-                    break
-                outputtext = outputtext + liner
-            elif messagefound:
-                lastmessage = lastmessage + "\n" + liner
-                if len(lastmessage) >= messagelength:
-                    if messagetype == "M":
-                        self.show_warning(lastmessage)
-                        if (
-                            msg[:65]
-                            == "ToExpression::sntxi: Incomplete "
-                            + "expression; more input is needed "
-                            or msg[:48]
-                            == "ToExpression::sntx: " + "Invalid syntax in or before "
-                        ):
-                            raise MMASyntaxError("Syntax::sntxi", -1, "sntxi")
-                        if lastmessage[0:8] == "Syntax::":
-                            for p in range(len(lastmessage)):
-                                if lastmessage[p] == ":":
-                                    break
-                            raise MMASyntaxError(
-                                lastmessage[0:p], -1, lastmessage[p + 1 :]
-                            )
-                        if lastmessage[0:11] == "Power::infy":
-                            raise MMASyntaxError(lastmessage[0:11], lastmessage[13:])
-                        if lastmessage[0:18] == "OpenWrite::noopen":
-                            raise MMASyntaxError(lastmessage[0:18], lastmessage[20:])
-                    elif messagetype == "P":
-                        print("Last message=", lastmessage)
-                    messagefound = False
-                    messagelength = 0
-                    messagetype = ""
-                    lastmessage = ""
-                continue
-            elif not outputfound and not messagefound:
-                if liner[:4] == "Out[":
-                    outputfound = True
-                    for pos in range(len(liner) - 4):
-                        if liner[pos + 4] == "]":
-                            mmaexeccount = int(liner[4 : (pos + 4)])
-                            outputtext = liner[(pos + 7) :] + "\n"
-                            sangria = pos + 7
-                            break
-                        continue
-                elif liner[:2] == "P:" or liner[:2] == "M:":
-                    messagetype = liner[0]
-                    messagefound = True
-                    k = 2
-                    for i in range(len(liner) - 2):
-                        k = k + 1
-                        if liner[i + 2] == ":":
-                            break
-                    messagelength = int(liner[2 : (k - 1)])
-                    lastmessage = lastmessage + liner[k:]
-                else:  # For some reason, Information do not pass
-                    # through Print or  $PrePrint
-                    if liner != "":
-                        print("--->", liner)
-            else:  # Shouldn't happen
-                print("extra line? " + liner)
-        if mmaexeccount > 0:
-            self.execution_count = mmaexeccount
-        return outputtext
-
     def process_response_mathics(self, resp):
         """
         This routine splits the output from messages
@@ -1310,4 +1182,4 @@ def _formatter(data, repr_func):
 if __name__ == "__main__":
     #    from ipykernel.kernelapp import IPKernelApp
     #    IPKernelApp.launch_instance(kernel_class=MathicsKernel)
-    WolframKernel.run_as_main()
+    MathicsKernel.run_as_main()

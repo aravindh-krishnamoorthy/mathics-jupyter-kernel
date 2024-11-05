@@ -25,7 +25,7 @@ def subdirs(root, file='*.*', depth=10):
 # Reads the specific command line arguments
 
 if "--help" in sys.argv:
-    print('setup install|build --mma-exec <path to mathematica executable> --iwolfram-mathkernel-path <path to store the caller>')
+    print('setup install|build')
 
 
 
@@ -47,57 +47,8 @@ def get_start_text(cmd):
     # strip removes leading LF or CR+LF in case of the mathics banner
     return starttext.strip()
 
-# As default, look first if wolfram mma is installed. Otherwise, use mathics.
+# Mathics or nothing
 wmmexec = None
-if "--mma-exec" in sys.argv:
-    idx = sys.argv.index("--mma-exec")
-    sys.argv.pop(idx)
-    candidate = sys.argv.pop(idx)
-    print("trying ", candidate)
-    try:
-        starttext = get_start_text(candidate)
-        print("kernel sending", starttext)
-        if starttext[:11] == "Mathematica":
-            print("Using Wolfram Mathematica")
-            wmmexec = candidate
-        if starttext[:7] == "Wolfram":
-            print("Using Wolfram Script")
-            wmmexec = candidate
-        elif starttext[:7] == "Mathics":
-            print("Using Mathics")
-            wmmexec = candidate
-        elif starttext[:21] == "Welcome to Expreduce!":
-            print("Using Expreduce")
-            wmmexec = candidate
-    except Exception:
-        print(wmmexec  + " is not a valid interpreter. Looking for a valid one.")
-
-if wmmexec is None:
-    print("trying with MathKernel")
-    candidates = [os.path.join(path, 'MathKernel' + ((os.path.extsep + 'exe') if os.name == 'nt' else '')) for path in os.environ["PATH"].split(os.pathsep)]
-    for candidate in candidates:
-        try:
-            starttext = get_start_text(candidate)
-            if starttext[:11] == "Mathematica":
-                print("MathKernel (Wolfram version) found at " + candidate)
-                wmmexec = candidate
-                break
-        except Exception:
-            continue
-
-if wmmexec is None:
-    print("trying with wolframscript")
-    candidates =  [os.path.join(path, 'wolframscript' + ((os.path.extsep + 'exe') if os.name == 'nt' else '')) for path in os.environ["PATH"].split(os.pathsep)]
-    for candidate in candidates:
-        try:
-            starttext = get_start_text(candidate)
-            if starttext[:7] == "Wolfram":
-                print("MathKernel (Wolfram version) found at " + candidate)
-                wmmexec = candidate
-                break
-        except Exception:
-            continue
-
 if wmmexec is None:
     print("trying with Mathics")
     candidates =  [os.path.join(path, 'mathics' + ((os.path.extsep + 'exe') if os.name == 'nt' else ''))
@@ -137,30 +88,11 @@ class install_with_kernelspec(install):
         import os
         global wmmexec
         print("Installing kernelspec")
-        if wmmexec[-13:] == "wolframscript":
-            with open("wolfram_kernel/init.m",encoding="utf-8") as f:
-                script = f.read()
-
-            with open("wolfram_kernel/wmath","w",encoding="utf-8") as f:
-                f.write("#!"+wmmexec+" -c\n")
-                f.write('Output={OutputStream["stdout",1]};\n')
-                f.write('Print["Mathematica"];\n')
-                f.write(script)
-                f.write("\n")
-                f.write('$Line=0;\n')
-                f.write('Dialog[];\n')
-                f.write("")
-
-            if platform.system() == "Linux":
-                os.chmod("wolfram_kernel/wmath", 0o755)
-
-            wmmexec = (setuptools.__path__)[0][:-10]  + "wolfram_kernel/wmath"
-
 
         user = '--user' in sys.argv or not _is_root()
         configfilestr = f"# iwolfram configuration file\nmathexec = '{wmmexec}'\n\n"
         configfilestr = configfilestr.replace('{wolfram-caller-script-path}', wmmexec)
-        with open('wolfram_kernel/config.py','w',encoding='utf-8') as f:
+        with open('mathics_kernel/config.py','w',encoding='utf-8') as f:
             f.write(configfilestr)
 
         #Run the standard intallation
@@ -176,9 +108,9 @@ class install_with_kernelspec(install):
 
             from ipykernel.kernelspec import write_kernel_spec
             from jupyter_client.kernelspec import KernelSpecManager
-            from wolfram_kernel.wolfram_kernel import WolframKernel
-            kernel_json = WolframKernel.kernel_json
-            kernel_js = WolframKernel.kernel_js
+            from mathics_kernel.mathics_kernel import MathicsKernel
+            kernel_json = MathicsKernel.kernel_json
+            kernel_js = MathicsKernel.kernel_js
             kernel_spec_manager = KernelSpecManager()
             kernel_spec_path = write_kernel_spec(overrides=kernel_json)
             with open(kernel_spec_path+"/kernel.js","w",encoding="utf-8") as jsfile:
@@ -215,19 +147,18 @@ class install_with_kernelspec(install):
         except:
             log.info("nbextension can not be installed")
 
-
-setup(name='wolfram_kernel',
-      version='0.11.3',
-      description='A Wolfram Mathematica/mathics kernel for Jupyter/IPython',
-      long_description='A Wolfram Mathematica/mathics kernel for Jupyter/IPython, based on MetaKernel',
-      url='https://github.com/matera/iwolfram/tree/master/iwolfram',
-      author='Juan Mauricio Matera',
-      author_email='matera@fisica.unlp.edu.ar',
-      packages=['wolfram_kernel','nbmathics'],
+setup(name='mathics_kernel',
+      version='0.0.1',
+      description='A Mathics kernel for Jupyter/IPython',
+      long_description='A Mathics kernel for Jupyter/IPython, based on MetaKernel',
+      url=' https://github.com/aravindh-krishnamoorthy/iwolfram',
+      author='Juan Mauricio Matera and Aravindh Krishnamoorthy',
+      author_email='aravindh.krishnamoorthy@fau.de',
+      packages=['mathics_kernel','nbmathics'],
       cmdclass={'install': install_with_kernelspec},
       install_requires=['metakernel'],
       package_data={
-          'wolfram_kernel': ['init.m','wmath',],
+          'mathics_kernel': ['init.m','wmath',],
           'nbmathics': ['nbmathics/static/img/*.gif',
                         'nbmathics/static/css/*.css',
                         'nbmathics/static/*.js',
