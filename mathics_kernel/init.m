@@ -227,47 +227,25 @@ JupyterReturnValue[v_]:= If[And[FreeQ[v,Graphics],FreeQ[v,Graphics3D]],
 						    Graphics3D[___]-> "- graphics3D -"}]]
 			   ]
 
-
-
 JupyterReturnValue[v_Sound]:= "wav:"<> "data:audio/wav;base64," <> ExportString[ExportString[v,"wav"],"Base64"]
 
-(*Definitions depending on the platform*)
-If[StringTake[$Version,{1,7}] == "Mathics",
-   (*Print["Defining system dependent expressions for mathics"];*)
-   (*Support for functions that are not currently available in mathics*)
-   LoadModule["pymathics.asy"];
-   Unprotect[WriteString];
-   WriteString[OutputStream["stdout", 1],x_]:=System`Print[x];
-   Protect[WriteString];
-   Global`Print[s_] := WriteString[OutputStream["stdout", 1],
-   "\nP:" <> ToString[StringLength[ToString[s]]] <> ":" <> ToString[s]<>"\n\n"];
-   (******)
-   JupyterReturnImage = JupyterReturnBase64PNG;
-   JupyterReturnValue[v_String]:= "string:"<> ExportString[v, "Base64"];
-   JupyterReturnExpressionTeX[v_]:=( texstr=StringReplace[ToString[TeXForm[v]],"\n"->" "];
-				     "tex:"<> ExportString[ToString[StringLength[texstr]]<>":"<> texstr<>":"<>
-							   ToString[InputForm[v]] , "Base64"]);
-   JupyterSTDOUT = OutputStream["stdout", 1];
-   ,(*Else*)
-   (* Print["Defining system dependent expressions for mma "];*)
-   (* JupyterReturnImage = JupyterReturnImageFilePNG; *)
-   JupyterReturnImage = JupyterReturnBase64PNG;
-   JupyterReturnValue[v_String]:= "string:"<>ExportString[v,"Base64"];
-   JupyterReturnExpressionTeX[v_]:=( texstr=StringReplace[ToString[TeXForm[v]],"\n"->" "];
-			       "tex:"<> ExportString[ToString[StringLength[texstr]]<>":"<> texstr<>":"<>
-						  ToString[InputForm[v]], "Base64"]);
-   JupyterSTDOUT = OutputStream["stdout", 1];
-   (*Redefine Print*)
-    Unprotect[Print];
-    Print[s_] := WriteString[OutputStream["stdout", 1],
-    "\nP:" <> ToString[StringLength[ToString[s]]] <> ":" <> ToString[s]<>"\n\n"]
-    Protect[Print];
-  ]
-
-
-
-
-
+(*Definitions for Mathics*)
+(*Print["Defining system dependent expressions for mathics"];*)
+(*Support for functions that are not currently available in mathics*)
+LoadModule["pymathics.asy"];
+LoadModule["pymathics.matplotlib"];
+Unprotect[WriteString];
+WriteString[OutputStream["stdout", 1],x_]:=System`Print[x];
+Protect[WriteString];
+Global`Print[s_] := WriteString[OutputStream["stdout", 1],
+"\nP:" <> ToString[StringLength[ToString[s]]] <> ":" <> ToString[s]<>"\n\n"];
+(******)
+JupyterReturnImage = JupyterReturnBase64SVG;
+JupyterReturnValue[v_String]:= "string:"<> ExportString[v, "Base64"];
+JupyterReturnExpressionTeX[v_]:=( texstr=StringReplace[ToString[TeXForm[v]],"\n"->" "];
+					"tex:"<> ExportString[ToString[StringLength[texstr]]<>":"<> texstr<>":"<>
+							ToString[InputForm[v]] , "Base64"]);
+JupyterSTDOUT = OutputStream["stdout", 1];
 JupyterMessage[m_MessageName, vars___] :=
   WriteString[OutputStream["stdout", 1], BuildMessage[m, vars]];
 BuildMessage[something___] := "";
