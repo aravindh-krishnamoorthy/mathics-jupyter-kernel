@@ -26,6 +26,7 @@ Alternatively, to start the [Jupyter Desktop](https://github.com/jupyterlab/jupy
 ```
 $ jlab .
 ```
+<p align="center"><img src="https://github.com/user-attachments/assets/f9429aed-6a43-4862-9b29-9307af068dae" width=50% height=50%></p>
 
 Contributing
 ------------
