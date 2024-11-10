@@ -80,7 +80,7 @@ class MathicsKernel(ProcessMetaKernel):
     language_info = {
         "exec": mathexec,
         "mimetype": "text/x-mathics",
-        "codemirror_mode": "wolfram",
+        "codemirror_mode": "mathematica",
         "name": "Mathics",
         "file_extension": ".m",
         "help_links": MetaKernel.help_links,
@@ -91,7 +91,7 @@ class MathicsKernel(ProcessMetaKernel):
     kernel_json = {
         "argv": [sys.executable, "-m", "mathics_kernel", "-f", "{connection_file}"],
         "display_name": "Mathics",
-        "language": "wolfram",
+        "language": "mathematica",
         "name": "mathics_kernel",
     }
 
