@@ -7,7 +7,7 @@ Installing
 ----------
 
 ```
-$ pip install -e .
+$ make develop
 ...
 Installing collected packages: mathics_kernel
 Attempting uninstall: mathics_kernel
