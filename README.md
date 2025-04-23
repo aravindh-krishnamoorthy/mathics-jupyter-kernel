@@ -1,4 +1,4 @@
-# IMathics
+# mathics_kernel
 
 Jupyter Interface for Mathics Notebooks based on the [IWolfram Kernel](https://github.com/Mathics3/iwolfram) by [Juan Mauricio Matera](https://github.com/mmatera).
 This version is maintained by me, [Aravindh Krishnamoorthy](https://github.com/aravindh-krishnamoorthy).
